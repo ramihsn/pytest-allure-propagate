@@ -22,3 +22,7 @@ allure-results
 # Secrets
 .pypirc
 .env
+
+# Coverage artifacts
+.coverage
+coverage.xml
