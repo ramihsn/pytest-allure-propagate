@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import allure  # type: ignore
+import allure
 import pytest
 
 

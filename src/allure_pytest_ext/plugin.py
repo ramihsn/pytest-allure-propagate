@@ -1,19 +1,20 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple, Type, cast
+from typing import Any, Callable, List, Optional, Tuple, Type, cast
 import threading
 import warnings
 import types
 import sys
 
 
+allure: Any
 try:  # pragma: no cover - imported in test runtime
-    import allure  # type: ignore[import-untyped]
+    import allure as _allure_mod
+    allure = _allure_mod
+    _import_error: Optional[Exception] = None
 except Exception as import_error:  # pragma: no cover
     allure = None
-    _import_error: Optional[Exception] = import_error
-else:
-    _import_error = None
+    _import_error = import_error
 
 
 ALLURE_REQUIRED_VERSION = "2.13.3"
