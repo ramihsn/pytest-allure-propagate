@@ -1,19 +1,21 @@
 from __future__ import annotations
+from ast import alias
 
 from allure_commons._core import plugin_manager
 from typing import Dict, Tuple
 import allure
 import pytest
 
+from allure_pytest_ext.plugin import AggregateError
 
-def test_step_propagate_caught_exception() -> None:
-    with pytest.raises(ValueError, match="boom"):
-        with allure.step("propagate caught", propagate=True):
-            try:
-                raise ValueError("boom")
-            except ValueError:
-                # Caught by user, but should still fail and propagate
-                pass
+
+def test_step_propagate_caught_exception_marks_failed_does_not_raise() -> None:
+    # propagate=True should mark step failed but not raise by default
+    with allure.step("propagate caught", propagate=True):
+        try:
+            raise ValueError("boom")
+        except ValueError:
+            pass
 
 
 def test_step_no_propagate_caught_exception() -> None:
@@ -136,3 +138,47 @@ def test_default_allure_catch_in_parent_makes_above_green_below_red() -> None:
         assert results[0] is False and results[1] is False and results[2] is True and results[3] is True
     finally:
         plugin_manager.unregister(name="capture_catch_parent")
+
+
+def test_nested_steps_success_no_failures() -> None:
+    with allure.step("step 1"):
+        with allure.step("step 2"):
+            pass
+
+
+def test_nested_propagate_inner_caught_parent_marks_failed_no_raise() -> None:
+    # With default raise_on_parent=False, nothing should raise out
+    with allure.step("outer", propagate=True):
+        try:
+            with allure.step("inner", propagate=True):
+                assert False, "boom"
+        except AssertionError:
+            pass
+
+
+def test_raise_on_parent_triggers_first_parent_raise() -> None:
+    # Only the first parent with raise_on_parent=True should raise
+    with pytest.raises(AssertionError, match="boom"):
+        with allure.step("step-1", propagate=True, raise_on_parent=True):
+            with allure.step("step-2", propagate=True):
+                try:
+                    with allure.step("step-3", propagate=True):
+                        assert False, "boom"
+                except AssertionError:
+                    pass
+
+
+def test_aggregate_single_child_failure_still_runs_siblings_and_raises() -> None:
+    executed: list[str] = []
+    with pytest.raises(AggregateError, match="boom") as excinfo:
+        with allure.aggregate_step("aggregate single"):
+            with allure.step("child ok 1"):
+                executed.append("ok-1")
+            with allure.step("child failing"):
+                executed.append("fail-start")
+                assert False, "boom"
+            with allure.step("child ok 2"):
+                executed.append("ok-2")
+    msg = str(excinfo.value)
+    assert "1 exception(s)" in msg and "AssertionError: boom" in msg
+    assert executed == ["ok-1", "fail-start", "ok-2"]
