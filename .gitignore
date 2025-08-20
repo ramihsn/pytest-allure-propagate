@@ -8,6 +8,17 @@ wheels/
 
 # Virtual environments
 .venv
+
+# IDEs
 .mypy_cache
 .vscode
 .cursor
+
+# Test files
+tests/test_mock.py
+allure-results
+*.zip
+
+# Secrets
+.pypirc
+.env
