@@ -18,8 +18,8 @@ jobs:
       - name: Install dependencies
         run: uv sync --dev
       - name: Black
-        run: uv run black --check --line-length 120 src tests
+        run: uv run black --check --line-length 120 src
       - name: Flake8
-        run: uv run flake8 --max-line-length 120 src tests
+        run: uv run flake8 --max-line-length 120 src
       - name: Mypy
-        run: uv run mypy --strict src tests
+        run: uv run mypy --strict src

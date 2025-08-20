@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from allure_commons._core import plugin_manager
+from typing import Dict, Tuple
 import allure
 import pytest
-from typing import Dict, Tuple
-from allure_commons._core import plugin_manager
 
 
 def test_step_propagate_caught_exception() -> None:
@@ -72,7 +72,7 @@ class _StepCapturePlugin:
     def __init__(self) -> None:
         self.title_by_uuid: Dict[str, str] = {}
         self.failed_by_uuid: Dict[str, bool] = {}
-        self.stop_order: list[tuple[str, bool]] = []
+        self.stop_order: list[Tuple[str, bool]] = []
 
     def start_step(self, uuid: str, title: str, params) -> None:  # type: ignore[no-untyped-def]
         self.title_by_uuid[uuid] = title

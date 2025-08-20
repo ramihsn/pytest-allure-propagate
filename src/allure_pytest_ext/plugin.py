@@ -10,6 +10,7 @@ import sys
 allure: Any
 try:  # pragma: no cover - imported in test runtime
     import allure as _allure_mod
+
     allure = _allure_mod
     _import_error: Optional[Exception] = None
 except Exception as import_error:  # pragma: no cover
@@ -66,6 +67,7 @@ class _PropagatingStep:
     def __enter__(self) -> Any:
         result = self._inner_cm.__enter__()
         if self._propagate:
+
             def _tracer(frame: types.FrameType, event: str, arg: Any) -> Optional[Callable[..., Any]]:
                 if event == "exception":
                     exc_type, exc_val, exc_tb = arg
