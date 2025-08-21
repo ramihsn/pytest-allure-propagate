@@ -6,6 +6,8 @@ import threading
 import warnings
 import types
 import sys
+import os
+import logging
 
 
 allure: Any
@@ -21,6 +23,37 @@ except Exception as import_error:  # pragma: no cover
 
 ALLURE_REQUIRED_VERSION = "2.13.3"
 _original_allure_step: Optional[Callable[[str], Any]] = None
+
+# Runtime toggle for source-logger step event logging
+_log_steps_enabled: bool = False
+
+
+def set_step_logging(enabled: bool) -> None:
+    """
+    Enable/disable logging of step start/end using the caller module's logger.
+
+    This affects both allure.step(...) and allure.aggregate_step(...).
+    """
+    global _log_steps_enabled
+    _log_steps_enabled = bool(enabled)
+
+
+def _resolve_logger_for_frame(frame: types.FrameType) -> logging.Logger:
+    module_name_obj = frame.f_globals.get("__name__", "__main__")
+    module_name = module_name_obj if isinstance(module_name_obj, str) else "__main__"
+    return logging.getLogger(module_name)
+
+
+def _maybe_log(logger: Optional[logging.Logger], level: int, message: str) -> None:
+    if not _log_steps_enabled:
+        return
+    if logger is None:
+        return
+    try:
+        logger.log(level, message)
+    except Exception:
+        # Never interfere with test execution due to logging issues
+        pass
 
 
 class AggregateError(Exception):
@@ -75,6 +108,7 @@ class _PropagatingStep:
         self._prev_global_trace: Optional[TraceFunc] = None
         self._installed_global_trace: bool = False
         self._prev_local_trace: Optional[TraceFunc] = None
+        self._logger: Optional[logging.Logger] = None
 
     def __enter__(self) -> Any:
         result = self._inner_cm.__enter__()
@@ -117,6 +151,9 @@ class _PropagatingStep:
 
             caller = sys._getframe(1)
             self._target_frame = caller
+            # Acquire a logger tied to the caller's module for source-origin logs
+            self._logger = _resolve_logger_for_frame(caller)
+            _maybe_log(self._logger, logging.INFO, f"[STEP START] {self._title!r}")
             self._prev_global_trace = cast(Optional[TraceFunc], sys.gettrace())
             self._prev_local_trace = cast(Optional[TraceFunc], caller.f_trace)
 
@@ -131,6 +168,12 @@ class _PropagatingStep:
 
             # Install local tracer for this frame to observe exceptions
             caller.f_trace = _tracer
+        else:
+            # Even when propagate is disabled, we still support START logging
+            caller = sys._getframe(1)
+            self._target_frame = caller
+            self._logger = _resolve_logger_for_frame(caller)
+            _maybe_log(self._logger, logging.INFO, f"[STEP START] {self._title!r}")
         return result
 
     def __exit__(
@@ -173,7 +216,10 @@ class _PropagatingStep:
 
         # If we detected a caught exception but nothing escaped and propagate is False, just finish normally
         if active_exc is None:
-            return bool(self._inner_cm.__exit__(exc_type, exc_val, exc_tb))
+            try:
+                return bool(self._inner_cm.__exit__(exc_type, exc_val, exc_tb))
+            finally:
+                _maybe_log(self._logger, logging.INFO, f"[STEP END] {self._title!r} - PASS")
 
         # There was an exception observed or escaping
         et, ev, etb = active_exc
@@ -182,12 +228,14 @@ class _PropagatingStep:
             # Under aggregate, always mark the step as failed (not broken), regardless of exception type
             ae = AssertionError(str(ev))
             self._inner_cm.__exit__(type(ae), ae, ae.__traceback__)
+            _maybe_log(self._logger, logging.INFO, f"[STEP END] {self._title!r} - FAIL")
             # Collect the original exception and suppress to continue siblings
             aggregate_stack[-1].exceptions.append(ev)
             return True
 
         # Not in aggregate: mark step according to the real exception
         self._inner_cm.__exit__(et, ev, etb)
+        _maybe_log(self._logger, logging.INFO, f"[STEP END] {self._title!r} - FAIL")
 
         # Outside aggregate
         if exc_type is not None:
@@ -209,9 +257,13 @@ class _AggregateStep:
         self._title = title
         assert _original_allure_step is not None, "Original allure.step not captured"
         self._inner_cm = _original_allure_step(title)
+        self._logger: Optional[logging.Logger] = None
 
     def __enter__(self) -> Any:
         _get_aggregate_stack().append(_AggregateState(self._title))
+        caller = sys._getframe(1)
+        self._logger = _resolve_logger_for_frame(caller)
+        _maybe_log(self._logger, logging.INFO, f"[STEP START] {self._title!r}")
         return self._inner_cm.__enter__()
 
     def __exit__(
@@ -238,6 +290,7 @@ class _AggregateStep:
             # Force allure status to failed for the aggregate step
             ae = AssertionError(str(agg_err))
             self._inner_cm.__exit__(type(ae), ae, ae.__traceback__)
+            _maybe_log(self._logger, logging.INFO, f"[STEP END] {self._title!r} - FAIL")
             if in_parent_aggregate:
                 # Defer raising to the parent aggregate; collect into parent and continue
                 stack[-1].exceptions.append(agg_err)
@@ -246,7 +299,10 @@ class _AggregateStep:
             raise agg_err
 
         # Close the step normally (no errors aggregated)
-        return bool(self._inner_cm.__exit__(local_exc_type, local_exc_val, local_exc_tb))
+        try:
+            return bool(self._inner_cm.__exit__(local_exc_type, local_exc_val, local_exc_tb))
+        finally:
+            _maybe_log(self._logger, logging.INFO, f"[STEP END] {self._title!r} - PASS")
 
 
 def aggregate_step(title: str) -> _AggregateStep:
@@ -282,5 +338,33 @@ def _monkey_patch_allure() -> None:
     setattr(allure, "aggregate_step", aggregate_step)
 
 
+def pytest_addoption(parser: Any) -> None:  # pragma: no cover - executed by pytest at collection time
+    try:
+        group = parser.getgroup("allure-pytest-ext")
+    except Exception:
+        group = parser
+    group.addoption(
+        "--allure-log-steps",
+        action="store_true",
+        default=False,
+        help="Log step start/end using the caller module's logger (info level)",
+    )
+    # INI: allure_log_steps = true/false
+    parser.addini("allure_log_steps", "bool: log step start/end from source module loggers", default=False)
+
+
 def pytest_configure(config: Any) -> None:  # pragma: no cover - executed by pytest at runtime
     _monkey_patch_allure()
+    # Resolve logging toggle from CLI/INI/env (any truthy enables)
+    env_enabled = os.environ.get("ALLURE_EXT_LOG_STEPS") or os.environ.get("ALLURE_LOG_STEPS")
+    ini_enabled = False
+    try:
+        ini_enabled = bool(config.getini("allure_log_steps"))
+    except Exception:
+        ini_enabled = False
+    cli_enabled = False
+    try:
+        cli_enabled = bool(getattr(config.option, "allure_log_steps", False))
+    except Exception:
+        cli_enabled = False
+    set_step_logging(bool(env_enabled) or ini_enabled or cli_enabled)
