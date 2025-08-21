@@ -1,8 +1,7 @@
-name: Publish
+name: Publish (manual)
 
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
 
 jobs:
   build-and-publish:

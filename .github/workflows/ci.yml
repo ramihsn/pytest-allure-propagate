@@ -1,27 +1,32 @@
-name: Test
+name: CI
 
 on:
   push:
+    branches: ['**']
+    tags-ignore: ['**']
   pull_request:
 
 jobs:
+  lint:
+    name: Lint (3.12)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/python-lint
+        with:
+          python-version: '3.12'
+
   test:
+    name: Test (3.8 - 3.13)
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
     steps:
       - uses: actions/checkout@v4
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: ./.github/actions/python-test
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: uv sync --dev
-      - name: Run tests
-        run: uv run pytest -q --ignore=tests/test_mock.py --cov=src/allure_pytest_ext --cov-report=term-missing --cov-report=xml
       - name: Upload coverage to Codecov
         if: ${{ matrix.python-version == '3.12' }}
         uses: codecov/codecov-action@v4

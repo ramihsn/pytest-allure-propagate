@@ -1,0 +1,23 @@
+name: Python Test
+description: Run pytest with coverage using uv
+
+inputs:
+  python-version:
+    description: Python version to use
+    required: false
+    default: '3.12'
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+    - uses: astral-sh/setup-uv@v3
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install dependencies
+      shell: bash
+      run: uv sync --dev
+    - name: Run tests
+      shell: bash
+      run: uv run pytest -q --cov=src/allure_pytest_ext --cov-report=term-missing --cov-report=xml
