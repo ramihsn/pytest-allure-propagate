@@ -25,4 +25,5 @@ allure-results
 
 # Coverage artifacts
 .coverage
+.coverage.*
 coverage.xml

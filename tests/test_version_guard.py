@@ -1,11 +1,8 @@
 from __future__ import annotations
 
 import importlib
-import os
 import sys
 from typing import Any
-
-import pytest
 
 
 def _reload_plugin(monkeypatch: Any) -> Any:

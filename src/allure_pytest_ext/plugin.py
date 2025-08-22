@@ -26,6 +26,7 @@ _original_allure_step: Optional[Callable[[str], Any]] = None
 
 # Runtime toggle for source-logger step event logging
 _log_steps_enabled: bool = False
+_debug_trace: bool = bool(os.environ.get("ALLURE_EXT_DEBUG_TRACE"))
 
 
 def set_step_logging(enabled: bool) -> None:
@@ -120,6 +121,12 @@ class _PropagatingStep:
                 # Capture any exception observed within the step body
                 if event == "exception":
                     exc_type, exc_val, exc_tb = arg
+                    if _debug_trace:
+                        try:
+                            name = getattr(exc_type, "__name__", str(exc_type))
+                            print(f"[ALLURE_EXT DEBUG] step={self._title!r} saw exception {name}: {exc_val}")
+                        except Exception:
+                            pass
                     # Ignore control-flow sentinel exceptions which may appear in pytest internals
                     try:
                         is_control_flow_exc = issubclass(exc_type, (StopIteration, GeneratorExit))
@@ -154,17 +161,19 @@ class _PropagatingStep:
             # Acquire a logger tied to the caller's module for source-origin logs
             self._logger = _resolve_logger_for_frame(caller)
             _maybe_log(self._logger, logging.INFO, f"[STEP START] {self._title!r}")
+            # Save previously installed tracers
             self._prev_global_trace = cast(Optional[TraceFunc], sys.gettrace())
             self._prev_local_trace = cast(Optional[TraceFunc], caller.f_trace)
 
-            # Ensure tracing is enabled so that frame.f_trace receives events
-            if self._prev_global_trace is None:
+            # Ensure tracing is enabled so that frame.f_trace receives events.
+            # Under tools like coverage (CTracer), Python-level local tracers are not invoked unless a
+            # Python-level global tracer is active. Force-install a minimal Python tracer for the duration
+            # of this step, then restore the previous tracer on exit.
+            def _global_stub(frame: types.FrameType, event: str, arg: Any) -> Optional[Callable[..., Any]]:
+                return None
 
-                def _global_stub(frame: types.FrameType, event: str, arg: Any) -> Optional[Callable[..., Any]]:
-                    return None
-
-                sys.settrace(_global_stub)
-                self._installed_global_trace = True
+            sys.settrace(_global_stub)
+            self._installed_global_trace = True
 
             # Install local tracer for this frame to observe exceptions
             caller.f_trace = _tracer
@@ -197,10 +206,10 @@ class _PropagatingStep:
             # Restore previous tracers
             if self._target_frame is not None:
                 self._target_frame.f_trace = self._prev_local_trace
-            # Restore global tracing only if we enabled it
+            # Restore previous global tracer exactly as it was before entry
             if self._installed_global_trace:
                 try:
-                    sys.settrace(None)
+                    sys.settrace(self._prev_global_trace)
                 finally:
                     self._installed_global_trace = False
 
@@ -223,6 +232,19 @@ class _PropagatingStep:
 
         # There was an exception observed or escaping
         et, ev, etb = active_exc
+        if _debug_trace:
+            try:
+                print(f"[ALLURE_EXT DEBUG] __exit__ active_exc for {self._title!r}: {type(ev).__name__}: {ev}")
+            except Exception:
+                pass
+
+        # Ensure parents know about this failure even if tracer missed the exact event
+        try:
+            for step in list(_get_propagate_stack()):
+                if step is not self and step._observed_caught_exc is None:
+                    step._observed_caught_exc = (et, ev, etb)
+        except Exception:
+            pass
 
         if in_aggregate:
             # Under aggregate, always mark the step as failed (not broken), regardless of exception type

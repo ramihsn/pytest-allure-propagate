@@ -18,6 +18,9 @@ runs:
     - name: Install dependencies
       shell: bash
       run: uv sync --dev
+    - name: Clean coverage data
+      shell: bash
+      run: uv run coverage erase || true
     - name: Run tests
       shell: bash
-      run: uv run pytest -q --cov=src/allure_pytest_ext --cov-report=term-missing --cov-report=xml
+      run: uv run pytest -q --cov=src/allure_pytest_ext --cov-branch --cov-report=term-missing --cov-report=xml

@@ -48,16 +48,33 @@ def run_pytest_and_collect(code: str) -> Dict[str, Any]:
         allure_out.mkdir(parents=True, exist_ok=True)
 
         env = os.environ.copy()
-        # Ensure our plugin/package is importable and auto-loaded
-        project_root = str(Path(__file__).resolve().parents[1])
-        env["PYTHONPATH"] = os.pathsep.join([project_root, env.get("PYTHONPATH", "")])
+        # Ensure our plugin/package (in src layout) is importable and auto-loaded
+        project_root = Path(__file__).resolve().parents[1]
+        src_path = str(project_root / "src")
+        root_path = str(project_root)
+        env["PYTHONPATH"] = os.pathsep.join([src_path, root_path, env.get("PYTHONPATH", "")])
         env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "0"
+
+        # Prevent pytest-cov/coverage from activating inside the subprocess — mixing its data with
+        # branch-enabled coverage in the main session can cause combine errors.
+        for key in [
+            "PYTEST_ADDOPTS",
+            "COVERAGE_PROCESS_START",
+            "COVERAGE_FILE",
+            "COVERAGE_RCFILE",
+        ]:
+            env.pop(key, None)
+        for key in list(env.keys()):
+            if key.startswith("COV_CORE_"):
+                env.pop(key, None)
 
         cmd = [
             sys.executable,
             "-m",
             "pytest",
             "-q",
+            "-p",
+            "no:pytest_cov",
             "-p",
             "allure_pytest",
             "-p",

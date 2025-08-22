@@ -1,5 +1,4 @@
 from __future__ import annotations
-from ast import alias
 
 from allure_commons._core import plugin_manager
 from typing import Dict, Tuple
