@@ -21,7 +21,7 @@ except Exception as import_error:  # pragma: no cover
     _import_error = import_error
 
 
-ALLURE_REQUIRED_VERSION = "2.13.3"
+ALLURE_REQUIRED_VERSION = "2.13.4"
 _original_allure_step: Optional[Callable[[str], Any]] = None
 
 # Runtime toggle for source-logger step event logging
