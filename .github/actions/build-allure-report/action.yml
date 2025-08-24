@@ -1,0 +1,33 @@
+name: Build Allure Report (mock showcase)
+description: Run showcase mock tests and generate an Allure report
+
+inputs:
+  python-version:
+    description: Python version to use
+    required: false
+    default: '3.12'
+
+runs:
+  using: composite
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Sync dependencies
+      shell: bash
+      run: uv sync --all-extras --dev
+
+    - name: Install project (editable)
+      shell: bash
+      run: uv pip install -e .
+
+    - name: Run showcase tests (produce allure-results)
+      shell: bash
+      run: |
+        mkdir -p allure-results
+        uv run pytest examples -q --alluredir=allure-results || true
