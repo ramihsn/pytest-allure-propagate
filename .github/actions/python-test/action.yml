@@ -6,6 +6,10 @@ inputs:
     description: Python version to use
     required: false
     default: '3.12'
+  allure-version:
+    description: Optional allure-pytest version to install (overrides pyproject range)
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -15,12 +19,20 @@ runs:
     - uses: actions/setup-python@v5
       with:
         python-version: ${{ inputs.python-version }}
+
     - name: Install dependencies
       shell: bash
       run: uv sync --dev
+
+    - name: Override allure-pytest version (if specified)
+      if: ${{ inputs.allure-version != '' }}
+      shell: bash
+      run: uv pip install "allure-pytest==${{ inputs.allure-version }}"
+
     - name: Clean coverage data
       shell: bash
       run: uv run coverage erase || true
+
     - name: Run tests
       shell: bash
       run: uv run pytest -q --cov=src/allure_pytest_ext --cov-branch --cov-report=term-missing --cov-report=xml

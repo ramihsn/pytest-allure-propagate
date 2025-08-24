@@ -21,7 +21,39 @@ except Exception as import_error:  # pragma: no cover
     _import_error = import_error
 
 
-ALLURE_SUPPORTED_VERSIONS = {"2.13.3", "2.13.4", "2.13.5"}
+# Inclusive min/max supported versions for allure-pytest
+_ALLURE_MIN_VERSION = "2.13.3"
+_ALLURE_MAX_VERSION = "2.14.0"
+
+
+def _parse_version_to_tuple(version_str: Optional[str]) -> Tuple[int, int, int]:
+    """
+    Convert a semantic version string like "2.14.0" or "2.14.0rc1" into a 3-int tuple.
+    Non-digit suffixes are ignored. Missing components default to 0.
+    """
+    if not version_str:
+        return (0, 0, 0)
+    parts = version_str.split(".")
+    nums: List[int] = []
+    for raw in parts[:3]:
+        digits = "".join(ch for ch in raw if ch.isdigit())
+        try:
+            nums.append(int(digits) if digits else 0)
+        except Exception:
+            nums.append(0)
+    while len(nums) < 3:
+        nums.append(0)
+    return (nums[0], nums[1], nums[2])
+
+
+def _is_truthy_env(var_name: str) -> bool:
+    val = os.environ.get(var_name)
+    if val is None:
+        return False
+    lowered = str(val).strip().lower()
+    return lowered not in {"", "0", "false", "no", "off"}
+
+
 _original_allure_step: Optional[Callable[[str], Any]] = None
 
 # Runtime toggle for source-logger step event logging
@@ -338,13 +370,20 @@ def _monkey_patch_allure() -> None:
         version = metadata.version("allure-pytest")
     except metadata.PackageNotFoundError:  # pragma: no cover
         version = None
-    if version not in ALLURE_SUPPORTED_VERSIONS:
-        expected = ", ".join(sorted(ALLURE_SUPPORTED_VERSIONS))
-        warnings.warn(
-            f"allure-pytest version mismatch: expected one of {{{expected}}}, got {version}",
-            RuntimeWarning,
-            stacklevel=2,
-        )
+    # Version guard: inclusive range check with optional override via env
+    if not _is_truthy_env("ALLURE_EXT_ALLOW_VERSION_MISMATCH"):
+        v_tuple = _parse_version_to_tuple(version)
+        min_tuple = _parse_version_to_tuple(_ALLURE_MIN_VERSION)
+        max_tuple = _parse_version_to_tuple(_ALLURE_MAX_VERSION)
+        if not (min_tuple <= v_tuple <= max_tuple):
+            warnings.warn(
+                (
+                    f"allure-pytest version mismatch: expected in "
+                    f"[{_ALLURE_MIN_VERSION}, {_ALLURE_MAX_VERSION}], got {version}"
+                ),
+                RuntimeWarning,
+                stacklevel=2,
+            )
 
     original_step: Any = getattr(allure, "step", None)
     if original_step is None:
