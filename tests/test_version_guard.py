@@ -5,6 +5,9 @@ import sys
 import warnings
 from typing import Any
 
+_ALLURE_MIN_SUPPORTED_VERSION = "2.13.3"
+_ALLURE_MAX_SUPPORTED_VERSION = "2.14.1"
+
 
 def _reload_plugin(monkeypatch: Any) -> Any:
     if "allure_pytest_ext.plugin" in sys.modules:
@@ -17,20 +20,20 @@ def _reload_plugin(monkeypatch: Any) -> Any:
 
 def test_min_max_constants(monkeypatch: Any) -> None:
     plugin = _reload_plugin(monkeypatch)
-    assert getattr(plugin, "_ALLURE_MIN_VERSION") == "2.13.3"
-    assert getattr(plugin, "_ALLURE_MAX_VERSION") == "2.14.0"
+    assert getattr(plugin, "_ALLURE_MIN_VERSION") == _ALLURE_MIN_SUPPORTED_VERSION
+    assert getattr(plugin, "_ALLURE_MAX_VERSION") == _ALLURE_MAX_SUPPORTED_VERSION
 
 
 def test_no_warning_for_versions_inside_range(monkeypatch: Any) -> None:
     plugin = _reload_plugin(monkeypatch)
     monkeypatch.setenv("ALLURE_EXT_ALLOW_VERSION_MISMATCH", "")
-    monkeypatch.setattr(plugin.metadata, "version", lambda name: "2.13.3")
+    monkeypatch.setattr(plugin.metadata, "version", lambda name: _ALLURE_MIN_SUPPORTED_VERSION)
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         plugin._monkey_patch_allure()
         assert not [wi for wi in w if issubclass(wi.category, RuntimeWarning)]
 
-    monkeypatch.setattr(plugin.metadata, "version", lambda name: "2.14.0")
+    monkeypatch.setattr(plugin.metadata, "version", lambda name: _ALLURE_MAX_SUPPORTED_VERSION)
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         plugin._monkey_patch_allure()
@@ -40,12 +43,17 @@ def test_no_warning_for_versions_inside_range(monkeypatch: Any) -> None:
 def test_warning_for_versions_outside_range(monkeypatch: Any) -> None:
     plugin = _reload_plugin(monkeypatch)
     monkeypatch.setenv("ALLURE_EXT_ALLOW_VERSION_MISMATCH", "")
-    monkeypatch.setattr(plugin.metadata, "version", lambda name: "2.14.1")
+    _max_version_patch = int(_ALLURE_MAX_SUPPORTED_VERSION.split(".")[-1])
+    monkeypatch.setattr(
+        plugin.metadata,
+        "version",
+        lambda name: _ALLURE_MAX_SUPPORTED_VERSION.replace(f".{_max_version_patch}", f".{_max_version_patch + 1}")
+    )
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         plugin._monkey_patch_allure()
         msgs = [str(wi.message) for wi in w if issubclass(wi.category, RuntimeWarning)]
-        assert any("expected in [2.13.3, 2.14.0]" in m for m in msgs)
+        assert any(f"expected in [{_ALLURE_MIN_SUPPORTED_VERSION}, {_ALLURE_MAX_SUPPORTED_VERSION}]" in m for m in msgs)
 
 
 def test_env_override_suppresses_warning(monkeypatch: Any) -> None:

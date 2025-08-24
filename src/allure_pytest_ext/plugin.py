@@ -23,7 +23,7 @@ except Exception as import_error:  # pragma: no cover
 
 # Inclusive min/max supported versions for allure-pytest
 _ALLURE_MIN_VERSION = "2.13.3"
-_ALLURE_MAX_VERSION = "2.14.0"
+_ALLURE_MAX_VERSION = "2.14.1"
 
 
 def _parse_version_to_tuple(version_str: Optional[str]) -> Tuple[int, int, int]:
