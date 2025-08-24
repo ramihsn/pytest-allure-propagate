@@ -1,5 +1,5 @@
 # tests/test_allure_ext_showcase.py
-# Python 3.8+, allure-pytest>=2.13.3,<=2.13.4 baseline
+# Python 3.8+, allure-pytest>=2.13.3,<=2.13.5 baseline
 # This file intentionally contains both passing and failing tests
 # so you can see red/green/yellow statuses and nested steps in Allure UI.
 

@@ -4,7 +4,7 @@ import importlib
 import sys
 from typing import Any, Set
 
-SUPPORTED_VERSIONS: Set[str] = {"2.13.3", "2.13.4"}
+SUPPORTED_VERSIONS: Set[str] = {"2.13.3", "2.13.4", "2.13.5"}
 
 
 def _reload_plugin(monkeypatch: Any) -> Any:
