@@ -15,7 +15,6 @@ wheels/
 .cursor
 
 # Test files
-tests/test_mock.py
 allure-results
 *.zip
 

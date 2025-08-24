@@ -24,7 +24,7 @@ wheels = [
 
 [[package]]
 name = "allure-pytest-ext"
-version = "2.13.3"
+version = "2.13.3.post2"
 source = { editable = "." }
 dependencies = [
     { name = "allure-pytest" },

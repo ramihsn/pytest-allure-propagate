@@ -2,8 +2,6 @@ name: Allure Pages
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main, master ]
 
 permissions:
   contents: read
@@ -17,30 +15,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 👉 run tests to produce allure-results/ using uv and our dev env
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Sync dependencies
-        run: uv sync --all-extras --dev
-
-      - name: Install project (editable)
-        run: uv pip install -e .
-
-      - name: Run showcase tests (produce allure-results)
-        run: |
-          mkdir -p allure-results
-          mkdir -p tmp/mock_tests
-          cp tests/test_mock.py tmp/mock_tests/test_mock.py
-          uv run pytest -q tmp/mock_tests --alluredir=allure-results --ignore=tests/test_mock.py || true
+      - name: Build Allure results (composite action)
+        uses: ./.github/actions/build-allure-report
 
       # 👉 generate static site: allure-report/
-      # Easiest: use an action that bundles the CLI and preserves history structure
       - name: Generate Allure report
         uses: simple-elf/allure-report-action@master
         if: always()

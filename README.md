@@ -12,6 +12,7 @@ Links
 -----
 
 - Live Allure demo report (GitHub Pages): [pytest-allure-propagate report](https://ramihsn.github.io/pytest-allure-propagate/)
+- The demo report is generated automatically on tag creation (release workflow), and can also be built manually via the "Allure Pages" workflow.
 - Official Allure docs: `https://allurereport.org`
 - Allure pytest page on PyPI: `https://pypi.org/project/allure-pytest/`
 
