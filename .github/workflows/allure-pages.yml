@@ -1,0 +1,70 @@
+name: Allure Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  actions: read   # required by deploy-pages@v4
+
+jobs:
+  build-allure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 👉 run tests to produce allure-results/ using uv and our dev env
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Sync dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Install project (editable)
+        run: uv pip install -e .
+
+      - name: Run showcase tests (produce allure-results)
+        run: |
+          mkdir -p allure-results
+          mkdir -p tmp/mock_tests
+          cp tests/test_mock.py tmp/mock_tests/test_mock.py
+          uv run pytest -q tmp/mock_tests --alluredir=allure-results --ignore=tests/test_mock.py || true
+
+      # 👉 generate static site: allure-report/
+      # Easiest: use an action that bundles the CLI and preserves history structure
+      - name: Generate Allure report
+        uses: simple-elf/allure-report-action@master
+        if: always()
+        with:
+          allure_results: allure-results
+          allure_report: allure-report
+
+      # 👉 upload site artifact for Pages
+      - name: Upload Pages artifact
+        if: always()
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: allure-report
+
+  deploy:
+    needs: build-allure
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
