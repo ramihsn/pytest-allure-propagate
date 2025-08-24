@@ -1,6 +1,6 @@
 [project]
 name = "allure-pytest-ext"
-version = "2.13.3.post2"
+version = "2.13.4"
 description = "Extensions for allure-pytest: propagate step failures and aggregate step failures"
 readme = "README.md"
 requires-python = ">=3.8.1"
@@ -21,7 +21,7 @@ classifiers = [
     "Framework :: Pytest",
 ]
 dependencies = [
-    "allure-pytest==2.13.3",
+    "allure-pytest==2.13.4",
 ]
 
 [project.urls]
