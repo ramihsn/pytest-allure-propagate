@@ -24,7 +24,7 @@ wheels = [
 
 [[package]]
 name = "allure-pytest-ext"
-version = "2.13.4"
+version = "2.13.4.post1"
 source = { editable = "." }
 dependencies = [
     { name = "allure-pytest" },
@@ -51,7 +51,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "allure-pytest", specifier = "==2.13.4" }]
+requires-dist = [{ name = "allure-pytest", specifier = ">=2.13.3,<=2.13.4" }]
 
 [package.metadata.requires-dev]
 dev = [

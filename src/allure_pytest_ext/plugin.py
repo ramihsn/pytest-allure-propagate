@@ -21,7 +21,7 @@ except Exception as import_error:  # pragma: no cover
     _import_error = import_error
 
 
-ALLURE_REQUIRED_VERSION = "2.13.4"
+ALLURE_SUPPORTED_VERSIONS = {"2.13.3", "2.13.4"}
 _original_allure_step: Optional[Callable[[str], Any]] = None
 
 # Runtime toggle for source-logger step event logging
@@ -338,9 +338,10 @@ def _monkey_patch_allure() -> None:
         version = metadata.version("allure-pytest")
     except metadata.PackageNotFoundError:  # pragma: no cover
         version = None
-    if version != ALLURE_REQUIRED_VERSION:
+    if version not in ALLURE_SUPPORTED_VERSIONS:
+        expected = ", ".join(sorted(ALLURE_SUPPORTED_VERSIONS))
         warnings.warn(
-            f"allure-pytest version mismatch: expected {ALLURE_REQUIRED_VERSION}, got {version}",
+            f"allure-pytest version mismatch: expected one of {{{expected}}}, got {version}",
             RuntimeWarning,
             stacklevel=2,
         )
