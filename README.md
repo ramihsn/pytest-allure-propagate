@@ -35,7 +35,7 @@ Compatibility
 -------------
 
 - Python: 3.8 – 3.13
-- Allure pytest adapter: designed for `allure-pytest` versions 2.13.3–2.14.1.
+- Allure pytest adapter: designed for `allure-pytest` versions 2.13.3–2.14.2.
   At runtime, the plugin emits a warning if the installed `allure-pytest` version is outside this range.
 
 Quick start
