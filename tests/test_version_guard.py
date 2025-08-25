@@ -6,7 +6,7 @@ import warnings
 from typing import Any
 
 _ALLURE_MIN_SUPPORTED_VERSION = "2.13.3"
-_ALLURE_MAX_SUPPORTED_VERSION = "2.14.2"
+_ALLURE_MAX_SUPPORTED_VERSION = "2.14.3"
 
 
 def _reload_plugin(monkeypatch: Any) -> Any:
